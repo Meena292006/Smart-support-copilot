@@ -1,8 +1,8 @@
 Flask==2.3.3
 Flask-CORS==4.0.0
 sentence-transformers==2.2.2
-scikit-learn==1.3.2  # Older, stable version — no Cython compile issues
+scikit-learn==1.2.2
 joblib==1.3.2
 vaderSentiment==3.3.2
-numpy==1.24.3
+numpy==1.21.6
 torch==2.0.1+cpu
