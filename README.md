@@ -3,6 +3,7 @@ An intelligent **AI Copilot** powered by **Retrieval-Augmented Generation (RAG)*
 Built using **React.js**, **Flask**, and **Scikit-learn**, featuring live analytics, document chat, dark mode, and production-ready deployment.
 
 ---
+ <img width="1897" height="872" alt="image" src="https://github.com/user-attachments/assets/05b0ef2e-279e-42a2-87fc-220634db4462" />
 
 ## 🤖 Machine Learning & AI Intelligence
 
