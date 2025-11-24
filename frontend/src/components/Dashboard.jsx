@@ -1,7 +1,10 @@
 // frontend/src/components/Dashboard.jsx
 import React, { useEffect, useState } from "react";
 import { getHistory } from "../api.js";
-import { LineChart, Line, BarChart, Bar, PieChart, Pie, Cell, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import {
+  BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer
+} from 'recharts';
 
 export default function Dashboard() {
   const [data, setData] = useState([]);
@@ -32,7 +35,7 @@ export default function Dashboard() {
   const accuracy = stats.total > 0 ? ((stats.positive / (stats.positive + stats.negative)) * 100).toFixed(1) : 0;
   const automationRate = stats.total > 0 ? ((stats.auto / stats.total) * 100).toFixed(1) : 0;
 
-  // FIXED: Split comma-separated categories properly!
+  // Category chart data (your model output is comma-separated)
   const categoryCounts = {};
   data.forEach(m => {
     if (m.category) {
@@ -51,11 +54,6 @@ export default function Dashboard() {
     { name: "Negative", value: stats.negative, color: "#ef4444" },
     { name: "Neutral", value: stats.total - stats.positive - stats.negative, color: "#94a3b8" },
   ];
-
-  const hourlyData = Array.from({ length: 12 }, (_, i) => ({
-    hour: `${i + 1}:00`,
-    tickets: Math.floor(Math.random() * 20) + 5
-  }));
 
   return (
     <div className="p-6 space-y-8 bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 min-h-screen">
@@ -86,6 +84,7 @@ export default function Dashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Category Pie Chart */}
         <div className="bg-white rounded-3xl shadow-2xl p-8">
           <h2 className="text-3xl font-bold text-gray-800 mb-6">Tickets by Category (Your Model)</h2>
           <ResponsiveContainer width="100%" height={350}>
@@ -98,7 +97,7 @@ export default function Dashboard() {
                 outerRadius={120}
                 label={({ name, value }) => `${name}: ${value}`}
               >
-                {categoryData.map((entry, i) => (
+                {categoryData.map((_, i) => (
                   <Cell key={i} fill={["#8b5cf6", "#3b82f6", "#10b981", "#f59e0b", "#ef4444"][i % 5]} />
                 ))}
               </Pie>
@@ -108,6 +107,7 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
+        {/* Sentiment Bar Chart */}
         <div className="bg-white rounded-3xl shadow-2xl p-8">
           <h2 className="text-3xl font-bold text-gray-800 mb-6">Customer Sentiment</h2>
           <ResponsiveContainer width="100%" height={350}>
@@ -126,7 +126,7 @@ export default function Dashboard() {
         </div>
       </div>
 
-      {/* Live Feed */}
+      {/* Live Messages */}
       <div className="bg-white rounded-3xl shadow-2xl p-8">
         <h2 className="text-3xl font-bold text-gray-800 mb-6">Live Messages</h2>
         <div className="space-y-4 max-h-96 overflow-y-auto">
