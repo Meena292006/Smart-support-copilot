@@ -1,26 +1,28 @@
 # backend/smart_copilot.py
-import joblib, numpy as np, torch, random
+import joblib
+import numpy as np
 from sentence_transformers import SentenceTransformer, util
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+import os
 
-# --- Load models ---
-model_path = "model_CUSTOMER.pkl"
-vectorizer_path = "vectorizer_CUSTOMER.pkl"
+# CRITICAL: Load models ONCE at startup + use lightweight CPU torch
+print("Loading custom ML model...")
+category_model = joblib.load("../model_CUSTOMER.pkl")
+vectorizer = joblib.load("../vectorizer_CUSTOMER.pkl")
 
-category_model = joblib.load(model_path)
-vectorizer = joblib.load(vectorizer_path)
+print("Loading lightweight sentence transformer (this takes ~15 seconds)...")
+embedder = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
 
-embedder = SentenceTransformer('all-MiniLM-L6-v2')
-
-# --- Expanded & Better FAQ (Critical!) ---
+# Pre-encode FAQ once (saves RAM + faster responses)
 faq_docs = [
     {"category": "Billing", "question": "charged twice", "answer": "Duplicate charges usually clear in 3–7 days. No action needed."},
     {"category": "Billing", "question": "double charge", "answer": "This is a pending authorization. It will drop off automatically."},
     {"category": "Billing", "question": "refund", "answer": "Refunds take 5–10 business days to appear on your statement."},
     {"category": "Account", "question": "delete account", "answer": "Go to Settings → Privacy → Delete Account."},
-    {"category": "Account", "question": "can't login", "answer": "Try resetting password or check if your account is locked after too many attempts."},
-    {"category": "Technical", "question": "app crash", "answer": "Please force close the app, restart your phone, and reinstall if needed."},
+    {"category": "Account", "question": "can't login", "answer": "Try resetting password or check if your account is locked."},
+    {"category": "Technical", "question": "app crash", "answer": "Force close the app, restart your phone, and reinstall if needed."},
     {"category": "Technical", "question": "not loading", "answer": "Check your internet. Try switching to Wi-Fi or mobile data."},
+    {"category": "Technical", "question": "payment failed", "answer": "Try a different card or contact your bank."},
     {"category": "Technical", "question": "payment failed", "answer": "Try a different card or payment method. Contact your bank if it persists."},
      {"category": "Account", "question": "delete account", "answer": "Go to Settings → Privacy → Delete Account. Confirmation email sent. Let us know if the button is greyed out!"},
     {"category": "Billing", "question": "charged twice duplicate", "answer": "Duplicate charges are bank holds — disappear in 3–7 days. Still there? Reply with order number → instant refund."},
@@ -151,18 +153,17 @@ faq_docs = [
      "answer": "That’s just a reminder about an unpaid invoice. Pay it or ignore if already paid — your account stays active. Need help? Reply ‘INVOICE’."}
 ]
 
+print("Encoding FAQ answers...")
 faq_texts = [d["answer"] for d in faq_docs]
-faq_embeddings = embedder.encode(faq_texts, convert_to_tensor=True)
+faq_embeddings = embedder.encode(faq_texts, convert_to_tensor=True, show_progress_bar=False)
 
 sent_analyzer = SentimentIntensityAnalyzer()
 
-def predict_categories(text, threshold=0.25):  # Lowered from 0.3
+def predict_categories(text, threshold=0.25):
     X = vectorizer.transform([text])
     probs = category_model.predict_proba(X)[0]
     selected = [cls for cls, p in zip(category_model.classes_, probs) if p >= threshold]
-    if not selected:
-        selected = [category_model.classes_[np.argmax(probs)]]
-    return selected
+    return selected or [category_model.classes_[np.argmax(probs)]]
 
 def detect_sentiment(text):
     score = sent_analyzer.polarity_scores(text)["compound"]
@@ -173,8 +174,8 @@ def detect_sentiment(text):
     return "neutral"
 
 def detect_priority(text):
-    urgent_words = ["urgent", "refund", "immediately", "broken", "charged twice", "double charge", "now"]
-    return "urgent" if any(w in text.lower() for w in urgent_words) else "normal"
+    urgent = ["urgent", "refund", "immediately", "broken", "charged twice", "now", "help"]
+    return "urgent" if any(word in text.lower() for word in urgent) else "normal"
 
 def retrieve_best_answer(msg):
     q = embedder.encode(msg, convert_to_tensor=True)
@@ -192,11 +193,10 @@ def smart_support_copilot(message):
     rag = retrieve_best_answer(message)
     score = rag["score"]
 
-    # MAIN FIX: Lower thresholds so FAQs actually trigger!
-    if score > 0.58:  # Was 0.75 → too high!
+    if score > 0.58:
         reply = rag["answer"]
         auto = True
-    elif sentiment == "negative" and score > 0.45:  # Was 0.55
+    elif sentiment == "negative" and score > 0.45:
         reply = "We’re sorry for the trouble. " + rag["answer"]
         auto = True
     else:
