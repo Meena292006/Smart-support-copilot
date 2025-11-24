@@ -1,0 +1,7 @@
+flask
+flask-cors
+sentence-transformers
+torch
+vaderSentiment
+joblib
+numpy
